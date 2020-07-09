@@ -52,6 +52,7 @@ test {
   testLogging {
     events 'PASSED', 'FAILED', 'SKIPPED'
   }
+  testLogging.showStandardStreams = true
 }
 
 run {

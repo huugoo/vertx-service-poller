@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 
 public class MainVerticle extends AbstractVerticle {
 
-  private HashMap<String, String> services = new HashMap<>();
+  private HashMap<String, Service> services = new HashMap<>();
   //TODO use this
   private DBConnector connector;
   private BackgroundPoller poller = new BackgroundPoller();
@@ -24,7 +24,7 @@ public class MainVerticle extends AbstractVerticle {
     connector = new DBConnector(vertx);
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
-    services.put("https://www.kry.se", "UNKNOWN");
+    services.put("kry", new Service("https://www.kry.se", Status.UNKOWN));
     vertx.setPeriodic(1000 * 60, timerId -> poller.pollServices(services));
     setRoutes(router);
     vertx
@@ -47,9 +47,10 @@ public class MainVerticle extends AbstractVerticle {
           .entrySet()
           .stream()
           .map(service ->
-              new JsonObject()
-                  .put("name", service.getKey())
-                  .put("status", service.getValue()))
+                  new JsonObject()
+                      .put("name", service.getKey())
+                      .put("url", service.getValue().url)
+                      .put("status", service.getValue().status))
           .collect(Collectors.toList());
       req.response()
           .putHeader("content-type", "application/json")
@@ -57,7 +58,10 @@ public class MainVerticle extends AbstractVerticle {
     });
     router.post("/service").handler(req -> {
       JsonObject jsonBody = req.getBodyAsJson();
-      services.put(jsonBody.getString("url"), "UNKNOWN");
+      String name = jsonBody.getString("name");
+      String url = jsonBody.getString("url");
+      System.out.println(name + " " + url);
+      services.put(name, new Service(url, Status.UNKOWN));
       req.response()
           .putHeader("content-type", "text/plain")
           .end("OK");

@@ -5,13 +5,14 @@ fetch(servicesRequest)
 .then(function(serviceList) {
   serviceList.forEach(service => {
     var li = document.createElement("li");
-    li.appendChild(document.createTextNode(service.name + ': ' + service.status));
+    li.appendChild(document.createTextNode(service.name + '  -  ' + service.url + '  -  '  + service.status));
     listContainer.appendChild(li);
   });
 });
 
 const saveButton = document.querySelector('#post-service');
 saveButton.onclick = evt => {
+    let name = document.querySelector('#name').value;
     let urlName = document.querySelector('#url-name').value;
     fetch('/service', {
     method: 'post',
@@ -19,6 +20,6 @@ saveButton.onclick = evt => {
     'Accept': 'application/json, text/plain, */*',
     'Content-Type': 'application/json'
     },
-  body: JSON.stringify({url:urlName})
+  body: JSON.stringify({name:name,url:urlName})
 }).then(res=> location.reload());
 }

@@ -7,7 +7,6 @@ import io.vertx.ext.web.client.WebClient;
 import io.vertx.junit5.Timeout;
 import io.vertx.junit5.VertxExtension;
 import io.vertx.junit5.VertxTestContext;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -103,44 +102,42 @@ public class TestMainVerticle {
                     String body = response.result().bodyAsString();
                     System.out.println("post body: " + body);
                     assertEquals("OK", body);
-                    testContext.completeNow();
-                }));
 
-        // is the new service created?
-        WebClient.create(vertx)
-                .get(8080, "::1", "/service")
-                .send(response -> testContext.verify(() -> {
-                    assertEquals(200, response.result().statusCode());
-                    JsonArray body = response.result().bodyAsJsonArray();
-                    System.out.println("get body: " + body);
-                    assertEquals(2, body.size());
-                    JsonObject service = body.getJsonObject(1);
-                    assertEquals(service_name, service.getString("name"));
-                    assertEquals("kry.se", service.getString("url"));
-                    assertEquals(Status.UNKOWN, service.getString("status"));
-                    testContext.completeNow();
-                }));
+                    // is the new service created?
+                    WebClient.create(vertx)
+                            .get(8080, "::1", "/service")
+                            .send(response2 -> testContext.verify(() -> {
+                                    assertEquals(200, response2.result().statusCode());
+                                    JsonArray body2 = response2.result().bodyAsJsonArray();
+                                    System.out.println("get body2: " + body2);
+                                    assertEquals(1, body2.size());
+                                    JsonObject service = body2.getJsonObject(0);
+                                    assertEquals(service_name, service.getString("name"));
+                                    assertEquals("kry.se", service.getString("url"));
+                                    assertEquals(Status.UNKOWN.toString(), service.getString("status"));
 
-        // delete the service
-        WebClient.create(vertx)
-                .delete(8080, "::1", "/service/" + service_name)
-                .send(response -> testContext.verify(() -> {
-                    assertEquals(200, response.result().statusCode());
-                    String body = response.result().bodyAsString();
-                    System.out.println("post body: " + body);
-                    assertEquals("OK", body);
-                    testContext.completeNow();
-                }));
+                                // delete the service
+                                WebClient.create(vertx)
+                                        .delete(8080, "::1", "/service/" + service_name)
+                                        .send(response3 -> testContext.verify(() -> {
+                                            assertEquals(200, response3.result().statusCode());
+                                            String body3 = response3.result().bodyAsString();
+                                            System.out.println("post body: " + body3);
+                                            assertEquals("OK", body3);
+                                            //testContext.completeNow();
 
-        // is the service deleted?
-        WebClient.create(vertx)
-                .get(8080, "::1", "/service")
-                .send(response -> testContext.verify(() -> {
-                    assertEquals(200, response.result().statusCode());
-                    JsonArray body = response.result().bodyAsJsonArray();
-                    System.out.println("get body: " + body);
-                    assertEquals(0, body.size());
-                    testContext.completeNow();
+                                            // is the service deleted?
+                                            WebClient.create(vertx)
+                                                    .get(8080, "::1", "/service")
+                                                    .send(response4 -> testContext.verify(() -> {
+                                                        assertEquals(200, response4.result().statusCode());
+                                                        JsonArray body4 = response4.result().bodyAsJsonArray();
+                                                        System.out.println("get body: " + body4);
+                                                        assertEquals(0, body4.size());
+                                                        testContext.completeNow();
+                                                    }));
+                                        }));
+                            }));
                 }));
     }
 }

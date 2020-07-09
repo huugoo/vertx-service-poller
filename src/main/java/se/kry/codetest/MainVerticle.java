@@ -16,13 +16,13 @@ import java.util.stream.Collectors;
 public class MainVerticle extends AbstractVerticle {
 
   private HashMap<String, Service> services = new HashMap<>();
-  //TODO use this
   private DBConnector connector;
-  private BackgroundPoller poller = new BackgroundPoller();
+  private BackgroundPoller poller;
 
   @Override
   public void start(Future<Void> startFuture) {
     connector = new DBConnector(vertx);
+    poller = new BackgroundPoller(vertx);
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
     // services.put("kry", new Service("https://www.kry.se", Status.UNKOWN));
@@ -85,7 +85,6 @@ public class MainVerticle extends AbstractVerticle {
 
   private Future<Boolean> loadServicesFromDB() {
     Future<Boolean> status = Future.future();
-    System.out.println("loadServices");
     Future res = connector.query("Select * from service").setHandler(asyncResult -> {
       if(asyncResult.succeeded()) {
         for (JsonObject row : asyncResult.result().getRows()) {

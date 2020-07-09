@@ -24,20 +24,24 @@ public class MainVerticle extends AbstractVerticle {
     connector = new DBConnector(vertx);
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
-    services.put("kry", new Service("https://www.kry.se", Status.UNKOWN));
-    vertx.setPeriodic(1000 * 60, timerId -> poller.pollServices(services));
-    setRoutes(router);
-    vertx
-        .createHttpServer()
-        .requestHandler(router)
-        .listen(8080, result -> {
-          if (result.succeeded()) {
-            System.out.println("KRY code test service started");
-            startFuture.complete();
-          } else {
-            startFuture.fail(result.cause());
-          }
-        });
+    // services.put("kry", new Service("https://www.kry.se", Status.UNKOWN));
+    loadServicesFromDB().setHandler(status -> {
+      if (status.succeeded()) {
+        vertx.setPeriodic(1000 * 60, timerId -> poller.pollServices(services));
+        setRoutes(router);
+        vertx
+                .createHttpServer()
+                .requestHandler(router)
+                .listen(8080, result -> {
+                  if (result.succeeded()) {
+                    System.out.println("KRY code test service started");
+                    startFuture.complete();
+                  } else {
+                    startFuture.fail(result.cause());
+                  }
+                });
+      }
+    });
   }
 
   private void setRoutes(Router router){
@@ -60,12 +64,29 @@ public class MainVerticle extends AbstractVerticle {
       JsonObject jsonBody = req.getBodyAsJson();
       String name = jsonBody.getString("name");
       String url = jsonBody.getString("url");
-      System.out.println(name + " " + url);
       services.put(name, new Service(url, Status.UNKOWN));
+      connector.query("INSERT INTO SERVICE VALUES (null, '" + name + "', '" + url + "', datetime('now'))");
       req.response()
           .putHeader("content-type", "text/plain")
           .end("OK");
     });
+  }
+
+
+  private Future<Boolean> loadServicesFromDB() {
+    Future<Boolean> status = Future.future();
+    System.out.println("loadServices");
+    Future res = connector.query("Select * from service").setHandler(asyncResult -> {
+      if(asyncResult.succeeded()) {
+        for (JsonObject row : asyncResult.result().getRows()) {
+          String name = row.getString("name");
+          String url = row.getString("url");
+          services.put(name, new Service(url, Status.UNKOWN));
+        }
+        status.complete(true);
+      }
+    });
+    return status;
   }
 
 }

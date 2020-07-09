@@ -8,6 +8,7 @@ import io.vertx.ext.web.Router;
 import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
+import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -70,6 +71,15 @@ public class MainVerticle extends AbstractVerticle {
           .putHeader("content-type", "text/plain")
           .end("OK");
     });
+
+    router.delete("/service/:serviceName").handler(req -> {
+      String serviceName =  req.pathParam("serviceName");
+      services.remove(serviceName);
+      connector.query("DELETE from service where name like '" + serviceName + "'");
+      req.response()
+              .putHeader("content-type", "text/plain")
+              .end("OK");
+    });
   }
 
 
@@ -88,6 +98,7 @@ public class MainVerticle extends AbstractVerticle {
     });
     return status;
   }
+
 
 }
 

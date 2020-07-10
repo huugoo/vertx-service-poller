@@ -19,10 +19,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 @ExtendWith(VertxExtension.class)
 public class TestMainVerticle {
 
-    // TODO: Create a separate test.db
+    // TODO: Create a separate database file test.db
     @BeforeEach
     void deploy_verticle(Vertx vertx, VertxTestContext testContext) {
         DBConnector connector = new DBConnector(vertx);
+        //TODO: Create-recreate the db instead
         connector.query("DELETE from service where name like '%'").setHandler(asyncResult -> {
             if(asyncResult.succeeded()) {
                 vertx.deployVerticle(new MainVerticle(), testContext.succeeding(id -> testContext.completeNow()));
@@ -38,8 +39,6 @@ public class TestMainVerticle {
         .get(8080, "::1", "/service")
         .send(response -> testContext.verify(() -> {
           assertEquals(200, response.result().statusCode());
-          // JsonArray body = response.result().bodyAsJsonArray();
-          // assertEquals(1, body.size());
           testContext.completeNow();
         }));
     }
@@ -48,42 +47,59 @@ public class TestMainVerticle {
     @DisplayName("Add two new services with two posts to /service")
     @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
     void add_service(Vertx vertx, VertxTestContext testContext) {
+        final String serviceName = "testName1";
+        final String serviceName2 = "testName2";
+        final String url = "http://www.kry.se";
+
         // add a new service
-        JsonObject json = new JsonObject().put("name", "testName1").put("url", "kry.se");
+        JsonObject json = new JsonObject().put("name", serviceName).put("url", url);
         WebClient.create(vertx)
                 .post(8080, "::1", "/service")
                 .sendJsonObject(json, response -> testContext.verify(() -> {
                     assertEquals(200, response.result().statusCode());
                     String body = response.result().bodyAsString();
-                    System.out.println("post body: " + body);
                     assertEquals("OK", body);
-                    testContext.completeNow();
-                }));
 
-        // add a second new service
-        JsonObject json2 = new JsonObject().put("name", "testName2").put("url", "http://www.kry.se");
+                    // add a second new service
+                    JsonObject json2 = new JsonObject().put("name", serviceName2).put("url", url);
+                    WebClient.create(vertx)
+                            .post(8080, "::1", "/service")
+                            .sendJsonObject(json2, respons2 -> testContext.verify(() -> {
+                                assertEquals(200, respons2.result().statusCode());
+                                String body2 = respons2.result().bodyAsString();
+                                assertEquals("OK", body);
+
+                                // is the new service created?
+                                WebClient.create(vertx)
+                                        .get(8080, "::1", "/service")
+                                        .send(response3 -> testContext.verify(() -> {
+                                            assertEquals(200, response3.result().statusCode());
+                                            JsonArray body3 = response3.result().bodyAsJsonArray();
+                                            System.out.println("list of services: " + body3);
+                                            assertEquals(2, body3.size());
+                                            JsonObject service = body3.getJsonObject(1);
+                                            assertEquals("testName2", service.getString("name"));
+                                            assertEquals("http://www.kry.se", service.getString("url"));
+                                            assertEquals(Status.UNKOWN.toString(), service.getString("status"));
+                                            testContext.completeNow();
+                                        }));
+                            }));
+                }));
+    }
+
+    @Test
+    @DisplayName("Bad url post to /service")
+    @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
+    void bad_url(Vertx vertx, VertxTestContext testContext) {
+        final String serviceName = "testName1";
+        final String url = "afdase.asdf";
+
+        // add a new service
+        JsonObject json = new JsonObject().put("name", serviceName).put("url", url);
         WebClient.create(vertx)
                 .post(8080, "::1", "/service")
                 .sendJsonObject(json, response -> testContext.verify(() -> {
-                    assertEquals(200, response.result().statusCode());
-                    String body = response.result().bodyAsString();
-                    System.out.println("post body: " + body);
-                    assertEquals("OK", body);
-                    testContext.completeNow();
-                }));
-
-        // is the new service created?
-        WebClient.create(vertx)
-                .get(8080, "::1", "/service")
-                .send(response -> testContext.verify(() -> {
-                    assertEquals(200, response.result().statusCode());
-                    JsonArray body = response.result().bodyAsJsonArray();
-                    System.out.println("get body: " + body);
-                    assertEquals(2, body.size());
-                    JsonObject service = body.getJsonObject(1);
-                    assertEquals("testName2", service.getString("name"));
-                    assertEquals("http://www.kry.se", service.getString("url"));
-                    assertEquals(Status.UNKOWN, service.getString("status"));
+                    assertEquals(400, response.result().statusCode());
                     testContext.completeNow();
                 }));
     }
@@ -92,15 +108,14 @@ public class TestMainVerticle {
     @DisplayName("Post and Delete a service")
     @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
     void post_and_delete_service(Vertx vertx, VertxTestContext testContext) {
-        final String service_name = "testName1";
-        // add a new service
-        JsonObject json = new JsonObject().put("name", service_name).put("url", "kry.se");
+        final String serviceName = "testName1";
+        final String url = "http://www.kry.se";
+        JsonObject json = new JsonObject().put("name", serviceName).put("url", url);
         WebClient.create(vertx)
                 .post(8080, "::1", "/service")
                 .sendJsonObject(json, response -> testContext.verify(() -> {
                     assertEquals(200, response.result().statusCode());
                     String body = response.result().bodyAsString();
-                    System.out.println("post body: " + body);
                     assertEquals("OK", body);
 
                     // is the new service created?
@@ -109,22 +124,20 @@ public class TestMainVerticle {
                             .send(response2 -> testContext.verify(() -> {
                                     assertEquals(200, response2.result().statusCode());
                                     JsonArray body2 = response2.result().bodyAsJsonArray();
-                                    System.out.println("get body2: " + body2);
+                                    System.out.println("list of services: " + body2);
                                     assertEquals(1, body2.size());
                                     JsonObject service = body2.getJsonObject(0);
-                                    assertEquals(service_name, service.getString("name"));
-                                    assertEquals("kry.se", service.getString("url"));
+                                    assertEquals(serviceName, service.getString("name"));
+                                    assertEquals(url, service.getString("url"));
                                     assertEquals(Status.UNKOWN.toString(), service.getString("status"));
 
                                 // delete the service
                                 WebClient.create(vertx)
-                                        .delete(8080, "::1", "/service/" + service_name)
+                                        .delete(8080, "::1", "/service/" + serviceName)
                                         .send(response3 -> testContext.verify(() -> {
                                             assertEquals(200, response3.result().statusCode());
                                             String body3 = response3.result().bodyAsString();
-                                            System.out.println("post body: " + body3);
                                             assertEquals("OK", body3);
-                                            //testContext.completeNow();
 
                                             // is the service deleted?
                                             WebClient.create(vertx)
@@ -132,7 +145,7 @@ public class TestMainVerticle {
                                                     .send(response4 -> testContext.verify(() -> {
                                                         assertEquals(200, response4.result().statusCode());
                                                         JsonArray body4 = response4.result().bodyAsJsonArray();
-                                                        System.out.println("get body: " + body4);
+                                                        System.out.println("services after deletion: " + body4);
                                                         assertEquals(0, body4.size());
                                                         testContext.completeNow();
                                                     }));

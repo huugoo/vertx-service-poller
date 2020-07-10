@@ -3,7 +3,6 @@ package se.kry.codetest;
 import io.vertx.core.Future;
 import io.vertx.core.Vertx;
 import io.vertx.ext.web.client.WebClient;
-import java.util.Map;
 
 public class BackgroundPoller {
   private WebClient webClient;
@@ -12,11 +11,10 @@ public class BackgroundPoller {
     this.webClient = WebClient.create(vertx);
   }
 
-  public void pollServices(Map<String, Service> services) {
-    services.forEach((name, Service) -> pingService(Service.url).setHandler(asyncResult -> {
+  public void pollServices(ServiceRepository repo) {
+    repo.getServicesMap().forEach((name, Service) -> pingService(Service.url).setHandler(asyncResult -> {
       if (asyncResult.succeeded()) {
         Service.status = asyncResult.result();
-        services.put(name, Service);
       }
     }));
   }

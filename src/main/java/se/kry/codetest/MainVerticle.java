@@ -9,27 +9,25 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
 import org.apache.commons.validator.routines.UrlValidator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class MainVerticle extends AbstractVerticle {
 
   //TODO: Add logger
-  //TODO: HashMap is exposed (you shouldn't manipulate it directly)
-  private HashMap<String, Service> services = new HashMap<>();
   private DBConnector connector;
   private BackgroundPoller poller;
+  private ServiceRepository serviceRepo;
 
   @Override
   public void start(Future<Void> startFuture) {
     connector = new DBConnector(vertx);
     poller = new BackgroundPoller(vertx);
+    serviceRepo = new ServiceRepository(connector);
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
-    loadServicesFromDB().setHandler(status -> {
+    serviceRepo.loadServicesFromDB().setHandler(status -> {
       if (status.succeeded()) {
-        vertx.setPeriodic(1000 * 60, timerId -> poller.pollServices(services));
+        vertx.setPeriodic(1000 * 60, timerId -> poller.pollServices(serviceRepo));
         setRoutes(router);
         vertx
                 .createHttpServer()
@@ -46,7 +44,7 @@ public class MainVerticle extends AbstractVerticle {
     });
   }
 
-  //TODO: separte routes to their own file
+  //TODO: separate routes to their own file
   private void setRoutes(Router router) {
     staticRoute(router);
     getServicesRoute(router);
@@ -60,15 +58,7 @@ public class MainVerticle extends AbstractVerticle {
 
   private void getServicesRoute(Router router) {
     router.get("/service").handler(req -> {
-      List<JsonObject> jsonServices = services
-              .entrySet()
-              .stream()
-              .map(service ->
-                      new JsonObject()
-                              .put("name", service.getKey())
-                              .put("url", service.getValue().url)
-                              .put("status", service.getValue().status))
-              .collect(Collectors.toList());
+      List<JsonObject> jsonServices = serviceRepo.getServicesList();
       req.response()
               .putHeader("content-type", "application/json")
               .end(new JsonArray(jsonServices).encode());
@@ -87,9 +77,7 @@ public class MainVerticle extends AbstractVerticle {
                 .putHeader("content-type", "text/plain")
                 .end("Invalid url: " + url);
       } else {
-        services.put(name, new Service(url, Status.UNKOWN));
-        // TODO: put the queries in a separate method
-        connector.query("INSERT INTO SERVICE VALUES (null, '" + name + "', '" + url + "', datetime('now'))");
+        serviceRepo.addService(name, url);
         req.response()
                 .putHeader("content-type", "text/plain")
                 .end("OK");
@@ -106,29 +94,11 @@ public class MainVerticle extends AbstractVerticle {
   private void deleteServiceRoute(Router router) {
     router.delete("/service/:serviceName").handler(req -> {
       String serviceName =  req.pathParam("serviceName");
-      services.remove(serviceName);
-      // TODO: put the queries in a separate method
-      connector.query("DELETE from service where name like '" + serviceName + "'");
+      serviceRepo.deleteService(serviceName);
       req.response()
               .putHeader("content-type", "text/plain")
               .end("OK");
     });
-  }
-
-  // TODO: put the queries in a separate file
-  private Future<Boolean> loadServicesFromDB() {
-    Future<Boolean> status = Future.future();
-    Future res = connector.query("Select * from service").setHandler(asyncResult -> {
-      if(asyncResult.succeeded()) {
-        for (JsonObject row : asyncResult.result().getRows()) {
-          String name = row.getString("name");
-          String url = row.getString("url");
-          services.put(name, new Service(url, Status.UNKOWN));
-        }
-        status.complete(true);
-      }
-    });
-    return status;
   }
 
 }

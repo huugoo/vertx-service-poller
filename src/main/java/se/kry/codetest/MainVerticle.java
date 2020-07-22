@@ -9,6 +9,7 @@ import io.vertx.ext.web.handler.BodyHandler;
 import io.vertx.ext.web.handler.StaticHandler;
 
 import org.apache.commons.validator.routines.UrlValidator;
+
 import java.util.List;
 
 public class MainVerticle extends AbstractVerticle {
@@ -25,6 +26,7 @@ public class MainVerticle extends AbstractVerticle {
     serviceRepo = new ServiceRepository(connector);
     Router router = Router.router(vertx);
     router.route().handler(BodyHandler.create());
+
     serviceRepo.loadServicesFromDB().setHandler(status -> {
       if (status.succeeded()) {
         vertx.setPeriodic(1000 * 60, timerId -> poller.pollServices(serviceRepo));
@@ -77,10 +79,18 @@ public class MainVerticle extends AbstractVerticle {
                 .putHeader("content-type", "text/plain")
                 .end("Invalid url: " + url);
       } else {
-        serviceRepo.addService(name, url);
-        req.response()
-                .putHeader("content-type", "text/plain")
-                .end("OK");
+        serviceRepo.addService(name, url).setHandler(res -> {
+          if (res.succeeded()) {
+            req.response()
+                    .putHeader("content-type", "text/plain")
+                    .end("OK");
+          } else {
+            req.response()
+                    .setStatusCode(400)
+                    .putHeader("content-type", "text/plain")
+                    .end("Could not add Service");
+          }
+        });
       }
     });
   }

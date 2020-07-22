@@ -47,12 +47,12 @@ public class TestMainVerticle {
     @DisplayName("Add two new services with two posts to /service")
     @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
     void add_service(Vertx vertx, VertxTestContext testContext) {
-        final String serviceName = "testName1";
-        final String serviceName2 = "testName2";
+        final String serviceName1 = "test_Name1";
+        final String serviceName2 = "test_Name2";
         final String url = "http://www.kry.se";
 
         // add a new service
-        JsonObject json = new JsonObject().put("name", serviceName).put("url", url);
+        JsonObject json = new JsonObject().put("name", serviceName1).put("url", url);
         WebClient.create(vertx)
                 .post(8080, "::1", "/service")
                 .sendJsonObject(json, response -> testContext.verify(() -> {
@@ -77,10 +77,11 @@ public class TestMainVerticle {
                                             JsonArray body3 = response3.result().bodyAsJsonArray();
                                             System.out.println("list of services: " + body3);
                                             assertEquals(2, body3.size());
+                                            // TODO: make a loop and verify both Jsons in the array
                                             JsonObject service = body3.getJsonObject(1);
-                                            assertEquals("testName2", service.getString("name"));
-                                            assertEquals("http://www.kry.se", service.getString("url"));
-                                            assertEquals(Status.UNKOWN.toString(), service.getString("status"));
+                                            assertEquals(serviceName1, service.getString("name"));
+                                            assertEquals(url, service.getString("url"));
+                                            assertEquals(Status.UNKNOWN.toString(), service.getString("status"));
                                             testContext.completeNow();
                                         }));
                             }));
@@ -91,7 +92,7 @@ public class TestMainVerticle {
     @DisplayName("Bad url post to /service")
     @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
     void bad_url(Vertx vertx, VertxTestContext testContext) {
-        final String serviceName = "testName1";
+        final String serviceName = "test_Name1";
         final String url = "afdase.asdf";
 
         // add a new service
@@ -108,7 +109,7 @@ public class TestMainVerticle {
     @DisplayName("Post and Delete a service")
     @Timeout(value = 10, timeUnit = TimeUnit.SECONDS)
     void post_and_delete_service(Vertx vertx, VertxTestContext testContext) {
-        final String serviceName = "testName1";
+        final String serviceName = "test_Name1";
         final String url = "http://www.kry.se";
         JsonObject json = new JsonObject().put("name", serviceName).put("url", url);
         WebClient.create(vertx)
@@ -129,7 +130,7 @@ public class TestMainVerticle {
                                     JsonObject service = body2.getJsonObject(0);
                                     assertEquals(serviceName, service.getString("name"));
                                     assertEquals(url, service.getString("url"));
-                                    assertEquals(Status.UNKOWN.toString(), service.getString("status"));
+                                    assertEquals(Status.UNKNOWN.toString(), service.getString("status"));
 
                                 // delete the service
                                 WebClient.create(vertx)

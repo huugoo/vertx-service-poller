@@ -3,6 +3,8 @@ package se.kry.codetest.migrate;
 import io.vertx.core.Vertx;
 import se.kry.codetest.DBConnector;
 
+
+// TODO: change to a method that returns a Future when the tables are created (for testing)
 public class DBMigration {
 
   public static void main(String[] args) {
